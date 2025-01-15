@@ -16,3 +16,6 @@ name = "client"
 path = "src/client/main.rs"
 
 [dependencies]
+uuid = { version = "1.3.0", features = ["v4"] }
+pbkdf2 = { version = "0.12", features = ["simple"] }
+rand_core = { version = "0.6.4", features = ["std"] }
