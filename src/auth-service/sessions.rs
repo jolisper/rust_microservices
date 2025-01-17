@@ -20,8 +20,7 @@ impl SessionsTranstient {
             uuid_to_session: HashMap::new(),
         }
     }
-} 
-
+}
 
 impl Sessions for SessionsTranstient {
     fn create_session<T>(&mut self, user_id: T) -> Result<String, String>
@@ -38,7 +37,9 @@ impl Sessions for SessionsTranstient {
     where
         T: Into<String>,
     {
-        self.uuid_to_session.remove(&session_token.into());
+        self.uuid_to_session
+            .remove(&session_token.into())
+            .ok_or("Session not found")?;
         Ok(())
     }
 }
@@ -67,5 +68,13 @@ mod tests {
         sessions.delete_session(session).unwrap();
 
         assert_eq!(sessions.uuid_to_session.len(), 0);
+    }
+
+    #[test]
+    fn should_fail_to_delete_session_if_does_not_exist() {
+        let mut sessions = SessionsTranstient::new();
+        assert_eq!(sessions.uuid_to_session.len(), 0);
+
+        assert!(sessions.delete_session("1235").is_err());
     }
 }
