@@ -4,9 +4,9 @@ use pbkdf2::{
 };
 
 pub trait Users {
-    fn create_user<T: Into<String>>(&mut self, username: T, password: T) -> Result<&User, String>;
-    fn find_user_id<T: Into<String>>(&self, username: T, password: T) -> Option<String>;
-    fn delete_user<T: Into<String>>(&mut self, username: T) -> Result<(), String>;
+    fn create_user(&mut self, username: &str, password: &str) -> Result<&User, String>;
+    fn find_user_id(&self, username: &str, password: &str) -> Option<String>;
+    fn delete_user(&mut self, username: &str) -> Result<(), String>;
 }
 
 #[derive(Debug)]
@@ -60,9 +60,7 @@ impl UsersTransient {
 }
 
 impl Users for UsersTransient {
-    fn create_user<T: Into<String>>(&mut self, username: T, password: T) -> Result<&User, String> {
-        let username = username.into();
-
+    fn create_user(&mut self, username: &str, password: &str) -> Result<&User, String> {
         if self.find_user_by_username(&username).is_some() {
             return Err("Username already exists".into());
         }
@@ -79,31 +77,20 @@ impl Users for UsersTransient {
         Ok(self.users.last().unwrap())
     }
 
-    fn find_user_id<T>(&self, username: T, password: T) -> Option<String>
-    where
-        T: Into<String>,
-    {
-        let username = username.into();
-        let password = password.into();
-
+    fn find_user_id(&self, username: &str, password: &str) -> Option<String> {
         let user = self.find_user_by_username(&username)?;
 
-        if Self::verify_password(password, user).is_ok() {
+        if Self::verify_password(password.into(), user).is_ok() {
             return Some(user.uuid.clone());
         };
         None
     }
 
-    fn delete_user<T>(&mut self, username: T) -> Result<(), String>
-    where
-        T: Into<String>,
-    {
-        let username = username.into();
-
+    fn delete_user(&mut self, username: &str) -> Result<(), String> {
         let index = self
             .users
             .iter()
-            .position(|user| user.username() == &username)
+            .position(|user| user.username() == username)
             .ok_or_else(|| "User not found")?;
 
         self.users.remove(index);

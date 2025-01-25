@@ -1,19 +1,13 @@
-use crate::{
-    sessions::{Sessions, SessionsTranstient},
-    users::{Users, UsersTransient},
-};
+use crate::{sessions::Sessions, users::Users};
 
 pub struct Authenticator {
-    users: UsersTransient,
-    sessions: SessionsTranstient,
+    users: Box<dyn Users>,
+    sessions: Box<dyn Sessions>,
 }
 
 impl Authenticator {
-    fn new() -> Self {
-        Self {
-            users: UsersTransient::new(),
-            sessions: SessionsTranstient::new(),
-        }
+    fn new(users: Box<dyn Users>, sessions: Box<dyn Sessions>) -> Self {
+        Self { users, sessions }
     }
 
     fn sign_up(&mut self, username: &str, password: &str) -> Result<(), String> {
@@ -39,11 +33,16 @@ impl Authenticator {
 
 #[cfg(test)]
 mod tests {
+    use crate::{sessions::SessionsTranstient, users::UsersTransient};
+
     use super::*;
 
     #[test]
     fn sign_up_should_succeed_if_user_does_not_exist() {
-        let mut auth = Authenticator::new();
+        let mut auth = Authenticator::new(
+            Box::new(UsersTransient::new()),
+            Box::new(SessionsTranstient::new()),
+        );
 
         let response = auth.sign_up("username", "password");
 
@@ -52,7 +51,10 @@ mod tests {
 
     #[test]
     fn sign_up_should_fail_if_username_exists() {
-        let mut auth = Authenticator::new();
+        let mut auth = Authenticator::new(
+            Box::new(UsersTransient::new()),
+            Box::new(SessionsTranstient::new()),
+        );
 
         auth.sign_up("username", "password")
             .expect("A user should be signed up");
@@ -64,7 +66,10 @@ mod tests {
 
     #[test]
     fn sign_in_should_succeed_if_user_exists() {
-        let mut auth = Authenticator::new();
+        let mut auth = Authenticator::new(
+            Box::new(UsersTransient::new()),
+            Box::new(SessionsTranstient::new()),
+        );
 
         auth.sign_up("username", "password")
             .expect("A user should be signed up");
@@ -76,7 +81,10 @@ mod tests {
 
     #[test]
     fn sign_in_should_fail_if_user_does_not_exist() {
-        let mut auth = Authenticator::new();
+        let mut auth = Authenticator::new(
+            Box::new(UsersTransient::new()),
+            Box::new(SessionsTranstient::new()),
+        );
 
         let response = auth.sign_in("username", "password");
 
@@ -85,7 +93,10 @@ mod tests {
 
     #[test]
     fn sign_out_should_succeed_if_session_exists() {
-        let mut auth = Authenticator::new();
+        let mut auth = Authenticator::new(
+            Box::new(UsersTransient::new()),
+            Box::new(SessionsTranstient::new()),
+        );
 
         auth.sign_up("username", "password")
             .expect("A user should be signed up");
@@ -101,7 +112,10 @@ mod tests {
 
     #[test]
     fn sign_out_should_fail_if_session_does_not_exist() {
-        let mut auth = Authenticator::new();
+        let mut auth = Authenticator::new(
+            Box::new(UsersTransient::new()),
+            Box::new(SessionsTranstient::new()),
+        );
 
         let response = auth.sign_out("does-not-exist");
 
