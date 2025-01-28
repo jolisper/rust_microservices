@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::auth::Authenticator;
+use crate::{auth::Authenticator, sessions::SessionsTranstient, users::UsersTransient};
 
 pub mod authentication {
     tonic::include_proto!("authentication");
@@ -15,6 +15,10 @@ use tonic::{Request, Response, Status};
 
 use crate::service::authentication::authentication_server::Authentication;
 
+pub enum AuthenticationServiceConfig {
+    InMemory,
+}
+
 pub struct AuthenticationService {
     authenticator: Mutex<Authenticator>,
 }
@@ -23,6 +27,15 @@ impl AuthenticationService {
     fn new(authenticator: Authenticator) -> Self {
         Self {
             authenticator: Mutex::new(authenticator),
+        }
+    }
+
+    pub fn new_with_config(config: AuthenticationServiceConfig) -> Self {
+        match config {
+            AuthenticationServiceConfig::InMemory => Self::new(Authenticator::new(
+                UsersTransient::new(),
+                SessionsTranstient::new(),
+            )),
         }
     }
 }
@@ -110,13 +123,9 @@ impl Authentication for AuthenticationService {
 mod tests {
     use super::*;
 
-    use crate::sessions::SessionsTranstient;
-    use crate::users::UsersTransient;
-
     #[tokio::test]
     async fn sign_up_should_succeed() {
-        let authenticator = Authenticator::new(UsersTransient::new(), SessionsTranstient::new());
-        let service = AuthenticationService::new(authenticator);
+        let service = AuthenticationService::new_with_config(AuthenticationServiceConfig::InMemory);
 
         let request = tonic::Request::new(SignUpRequest {
             username: "username".to_string(),
@@ -125,89 +134,122 @@ mod tests {
 
         let response = service.sign_up(request).await.unwrap();
 
-        assert_eq!(response.into_inner().status_code, StatusCode::Success.into());
+        assert_eq!(
+            response.into_inner().status_code,
+            StatusCode::Success.into()
+        );
     }
 
     #[tokio::test]
     async fn sign_up_shoudl_fail_if_username_exists() {
-        let mut authenticator = Authenticator::new(UsersTransient::new(), SessionsTranstient::new());
-        authenticator
-            .sign_up("username", "password")
-            .expect("A user should be signed up");
+        let service = AuthenticationService::new_with_config(AuthenticationServiceConfig::InMemory);
 
-        let service = AuthenticationService::new(authenticator);
+        let username = "username";
+        let password = "password";
 
         let request = tonic::Request::new(SignUpRequest {
-            username: "username".to_string(),
-            password: "password".to_string(),
+            username: username.to_string(),
+            password: password.to_string(),
+        });
+
+        service.sign_up(request).await.unwrap();
+
+        let request = tonic::Request::new(SignUpRequest {
+            username: username.to_string(),
+            password: password.to_string(),
         });
 
         let response = service.sign_up(request).await.unwrap();
 
-        assert_eq!(response.into_inner().status_code, StatusCode::Failure.into());
+        assert_eq!(
+            response.into_inner().status_code,
+            StatusCode::Failure.into()
+        );
     }
 
     #[tokio::test]
     async fn sign_in_should_succeed() {
-        let mut authenticator = Authenticator::new(UsersTransient::new(), SessionsTranstient::new());
-        authenticator
-            .sign_up("username", "password")
-            .expect("A user should be signed up");
+        let service = AuthenticationService::new_with_config(AuthenticationServiceConfig::InMemory);
 
-        let service = AuthenticationService::new(authenticator);
+        let username = "username";
+        let password = "password";
+
+        let request = tonic::Request::new(SignUpRequest {
+            username: username.to_string(),
+            password: password.to_string(),
+        });
+
+        service.sign_up(request).await.unwrap();
 
         let request = tonic::Request::new(SignInRequest {
-            username: "username".to_string(),
-            password: "password".to_string(),
+            username: username.to_string(),
+            password: password.to_string(),
         });
 
         let response = service.sign_in(request).await.unwrap();
 
-        assert_eq!(response.into_inner().status_code, StatusCode::Success.into());
+        assert_eq!(
+            response.into_inner().status_code,
+            StatusCode::Success.into()
+        );
     }
 
     #[tokio::test]
     async fn sign_in_should_fail_if_user_does_not_exist() {
-        let authenticator = Authenticator::new(UsersTransient::new(), SessionsTranstient::new());
+        let service = AuthenticationService::new_with_config(AuthenticationServiceConfig::InMemory);
 
-        let service = AuthenticationService::new(authenticator);
+        let username = "username";
+        let password = "password";
 
         let request = tonic::Request::new(SignInRequest {
-            username: "username".to_string(),
-            password: "password".to_string(),
+            username: username.to_string(),
+            password: password.to_string(),
         });
 
         let response = service.sign_in(request).await.unwrap();
 
-        assert_eq!(response.into_inner().status_code, StatusCode::Failure.into());
+        assert_eq!(
+            response.into_inner().status_code,
+            StatusCode::Failure.into()
+        );
     }
 
     #[tokio::test]
     async fn sign_out_should_succeed() {
-        let mut authenticator = Authenticator::new(UsersTransient::new(), SessionsTranstient::new());
-        authenticator
-            .sign_up("username", "password")
-            .expect("A user should be signed up");
-        let (session_token, _) = authenticator
-            .sign_in("username", "password")
-            .expect("A user should be signed in");
+        let service = AuthenticationService::new_with_config(AuthenticationServiceConfig::InMemory);
 
-        let service = AuthenticationService::new(authenticator);
+        let username = "username";
+        let password = "password";
+
+        let request = tonic::Request::new(SignUpRequest {
+            username: username.to_string(),
+            password: password.to_string(),
+        });
+
+        service.sign_up(request).await.unwrap();
+
+        let request = tonic::Request::new(SignInRequest {
+            username: username.to_string(),
+            password: password.to_string(),
+        });
+
+        let response = service.sign_in(request).await.unwrap().into_inner();
 
         let request = tonic::Request::new(SignOutRequest {
-            session_token: session_token.to_string(),
+            session_token: response.session_token.to_string(),
         });
 
         let response = service.sign_out(request).await.unwrap();
 
-        assert_eq!(response.into_inner().status_code, StatusCode::Success.into());
+        assert_eq!(
+            response.into_inner().status_code,
+            StatusCode::Success.into()
+        );
     }
 
     #[tokio::test]
     async fn sign_out_should_fail_if_session_does_not_exist() {
-        let authenticator = Authenticator::new(UsersTransient::new(), SessionsTranstient::new());
-
-        let service = AuthenticationService::new(authenticator);
+        let service = AuthenticationService::new_with_config(AuthenticationServiceConfig::InMemory);
 
         let request = tonic::Request::new(SignOutRequest {
             session_token: "session_token".to_string(),
@@ -215,6 +257,9 @@ mod tests {
 
         let response = service.sign_out(request).await.unwrap();
 
-        assert_eq!(response.into_inner().status_code, StatusCode::Failure.into());
+        assert_eq!(
+            response.into_inner().status_code,
+            StatusCode::Failure.into()
+        );
     }
 }
