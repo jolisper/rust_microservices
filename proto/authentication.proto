@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package authentication;
 
-service Auth {
-    rpc SignUp(SignUpRequest) returns (SignUpResponse) {}
-    rpc SignIn(SignInRequest) returns (SignInResponse) {}
-    rpc SignOut(SignOutRequest) returns (SignOutResponse) {}
+service Authentication {
+    rpc SignUp(SignUpRequest) returns (SignUpResponse);
+    rpc SignIn(SignInRequest) returns (SignInResponse);
+    rpc SignOut(SignOutRequest) returns (SignOutResponse);
 }
 
 message SignUpRequest {

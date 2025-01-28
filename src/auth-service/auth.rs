@@ -1,35 +1,39 @@
 use crate::{sessions::Sessions, users::Users};
 
+pub trait Bound: Send + Sync + 'static {}
+
+impl<T: Send + Sync + 'static> Bound for T {}
+
 pub struct Authenticator {
-    users: Box<dyn Users>,
-    sessions: Box<dyn Sessions>,
+    users: Box<dyn Users + Send + Sync>,
+    sessions: Box<dyn Sessions + Send + Sync>,
 }
 
 impl Authenticator {
-    fn new(users: impl Users + 'static, sessions: impl Sessions + 'static) -> Self {
+    pub fn new(users: impl Users + Bound, sessions: impl Sessions + Bound) -> Self {
         Self {
             users: Box::new(users),
             sessions: Box::new(sessions),
         }
     }
 
-    fn sign_up(&mut self, username: &str, password: &str) -> Result<(), String> {
+    pub fn sign_up(&mut self, username: &str, password: &str) -> Result<(), String> {
         self.users.create_user(username, password)?;
         Ok(())
     }
 
-    fn sign_out(&mut self, session_token: &str) -> Result<(), String> {
+    pub fn sign_out(&mut self, session_token: &str) -> Result<(), String> {
         self.sessions.delete_session(session_token)?;
         Ok(())
     }
 
-    fn sign_in(&mut self, username: &str, password: &str) -> Result<String, String> {
+    pub fn sign_in(&mut self, username: &str, password: &str) -> Result<(String, String), String> {
         let user_id = self
             .users
             .find_user_id(username, password)
             .ok_or("User not found")?;
         let session = self.sessions.create_session(&user_id)?;
-        Ok(session)
+        Ok((session, user_id))
     }
 }
 
@@ -87,7 +91,7 @@ mod tests {
         auth.sign_up("username", "password")
             .expect("A user should be signed up");
 
-        let session = auth
+        let (session, _) = auth
             .sign_in("username", "password")
             .expect("A session should be created");
 
