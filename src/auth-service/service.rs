@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::Mutex;
 
 use crate::{auth::Authenticator, sessions::SessionsTranstient, users::UsersTransient};
@@ -23,6 +24,23 @@ pub enum AuthenticationServiceConfig {
     InMemory,
 }
 
+impl Default for AuthenticationServiceConfig {
+    fn default() -> Self {
+        Self::InMemory
+    }
+}
+
+impl FromStr for AuthenticationServiceConfig {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "InMemory" => Ok(AuthenticationServiceConfig::InMemory),
+            _ => Err(()),
+        }
+    }
+}
+
 pub struct AuthenticationService {
     authenticator: Mutex<Authenticator>,
 }
@@ -41,6 +59,12 @@ impl AuthenticationService {
                 SessionsTranstient::new(),
             )),
         }
+    }
+}
+
+impl Default for AuthenticationService {
+    fn default() -> Self {
+        Self::new_with_config(AuthenticationServiceConfig::default())
     }
 }
 
