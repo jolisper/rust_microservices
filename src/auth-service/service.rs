@@ -2,6 +2,10 @@ use std::sync::Mutex;
 
 use crate::{auth::Authenticator, sessions::SessionsTranstient, users::UsersTransient};
 
+// Re-exporting
+pub use authentication::authentication_server::AuthenticationServer;
+pub use tonic::transport::Server;
+
 pub mod authentication {
     tonic::include_proto!("authentication");
 }
