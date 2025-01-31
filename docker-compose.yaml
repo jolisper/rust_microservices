@@ -1,0 +1,21 @@
+version: "3.9"
+services:
+  health-check:
+    image: rust_microservices/health-check # specify name of image on Docker Hub
+    build: # specify which Docker file to use
+      context: .
+      dockerfile: Dockerfile.health-check
+    restart: "always" # automatically restart container when server crashes
+    depends_on: # ensure that `health-check` starts after `auth` is running
+      auth:
+        condition: service_started
+    environment:
+      - AUTH_HOSTNAME=auth
+  auth:
+    image: rust_microservices/authorization # specify name of image on Docker Hub
+    build: # specify which Docker file to use
+      context: .
+      dockerfile: Dockerfile.authorization
+    restart: "always" # automatically restart container when server crashes
+    ports:
+      - "50051:50051" # expose port 50051 so that applications outside the container can connect to it 
